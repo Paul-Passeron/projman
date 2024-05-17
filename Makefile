@@ -16,4 +16,4 @@ $(BIN)projman: $(DEPS)
 projman: $(BIN)projman
 clean:
 	rm -rf $(BIN)*
-	rm -rf $(BUILD)
+	rm -rf $(BUILD)*

@@ -56,7 +56,7 @@ void add_deps_to_makefile(FILE *mfile) {
   closedir(d);
 }
 
-void projman_create_makefile() {
+void projman_create_makefile(void) {
   char makefile[128] = {0};
   sprintf(makefile, "%s/Makefile", project_name);
   FILE *mfile = fopen(makefile, "wb");
@@ -73,11 +73,17 @@ void projman_create_makefile() {
   fprintf(mfile, "$(BIN)%s: $(DEPS)\n\t$(CC) $(CFLAGS) -o $@ $^\n",
           project_name);
   fprintf(mfile, "%s: $(BIN)%s\n", project_name, project_name);
-  fprintf(mfile, "clean:\n\trm -rf $(BIN)*\n\trm -rf $(BUILD)\n");
+  fprintf(mfile, "clean:\n\trm -rf $(BIN)*\n\trm -rf $(BUILD)*\n");
   fclose(mfile);
 }
 
-void projman_create_gitignore() {}
+void projman_create_gitignore(void) {
+  char filename[256];
+  sprintf(filename, "%s/.gitignore", directory);
+  FILE *f = fopen(filename, "w");
+  fprintf(f, "bin/*\nbuild/*\n*.o");
+  fclose(f);
+}
 
 void create_src_file(const char *name) {
   char file_path[256] = {0};
@@ -88,19 +94,8 @@ void create_src_file(const char *name) {
   }
 }
 
-void write_copyright(FILE *f, char *name) {
-  char *upper_fn = get_upper_filename(name);
-  fprintf(f, "/**\n");
-  fprintf(f, " * %s.c\n", name);
-  fprintf(f, " * Copyright (C) 2024 Paul Passeron\n");
-  fprintf(f, " * %s source file\n", upper_fn);
-  fprintf(f, " * Paul Passeron <paul.passeron2@gmail.com>\n");
-  fprintf(f, " */\n");
-  free(upper_fn);
-}
-
 void write_main_template(FILE *mainfile) {
-  write_copyright(mainfile, project_name);
+  write_copyright(mainfile, project_name, false);
   fprintf(mainfile, "\n\n");
   fprintf(mainfile, "#include <stdio.h>\n");
   fprintf(mainfile, "\n\n");
@@ -142,6 +137,7 @@ void projman_init(void) {
   make_structure();
   create_main_file();
   projman_create_makefile();
+  projman_create_gitignore();
 }
 
 void usage() {
@@ -180,6 +176,9 @@ int main(int argc, char **argv) {
         exit(1);
       }
       project_name = argv[i];
+    } else if (streq(arg, "-h")) {
+      usage();
+      exit(0);
     }
   }
   if (streq(project_name, actual_dir)) {
@@ -190,5 +189,58 @@ int main(int argc, char **argv) {
   if (is_create) {
     projman_init();
   }
+
+  for (int i = 1; i < argc; i++) {
+    char *arg = argv[i];
+    if (streq(arg, "-m")) {
+      if (argc <= ++i) {
+        usage();
+        exit(1);
+      }
+      while (i < argc && argv[i][0] != '-') {
+        char *module_name = argv[i];
+        new_file(module_name, directory);
+        i++;
+      }
+      if (i < argc) {
+        if (argv[i][0] == '-')
+          i -= 1;
+      }
+      continue;
+    } else if (streq(arg, "-mh")) {
+      printf("Here\n");
+      if (argc <= ++i) {
+        usage();
+        exit(1);
+      }
+      while (i < argc && argv[i][0] != '-') {
+        char *module_name = argv[i];
+        new_file_h(module_name, directory);
+        i++;
+      }
+      if (i < argc) {
+        if (argv[i][0] == '-')
+          i -= 1;
+      }
+      continue;
+    } else if (streq(arg, "-mc")) {
+      if (argc <= ++i) {
+        usage();
+        exit(1);
+      }
+      while (i < argc && argv[i][0] != '-') {
+        char *module_name = argv[i];
+        new_file_c(module_name, directory);
+        i++;
+      }
+      if (i < argc) {
+        if (argv[i][0] == '-')
+          i -= 1;
+      }
+      continue;
+    }
+  }
+  projman_create_makefile();
+
   return 0;
 }
