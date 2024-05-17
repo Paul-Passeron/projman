@@ -155,10 +155,14 @@ void usage() {
   printf("\t-mc <module name> Add module (.c file only) and adds it to the "
          "makefile\n");
   printf("\t-mh <module name> Add stb-style module (.h file only)\n");
+  printf("\t-r [args] Build and run the current project with args\n");
+  printf("\t-f forces the makefile to recompile everything\n");
+  printf("\t-i install the project (Can require sudo)\n");
   // printf();
 }
 
 bool is_create = false;
+bool is_forced = false;
 
 char actual_dir[128];
 
@@ -181,6 +185,8 @@ int main(int argc, char **argv) {
     } else if (streq(arg, "-h")) {
       usage();
       exit(0);
+    } else if (streq(arg, "-f")) {
+      is_forced = true;
     }
   }
   if (project_name == NULL) {
@@ -212,9 +218,23 @@ int main(int argc, char **argv) {
         char *module_name = argv[i];
         new_file_c(module_name, directory);
       }
+    } else if (streq(arg, "-r")) {
+      char cmd[256];
+      sprintf(cmd, "%s make && %sbin/%s", is_forced ? "make clean &&" : "",
+              directory, project_name);
+      while (++i < argc && argv[i][0] != '-') {
+        strcat(cmd, argv[i]);
+        strcat(cmd, " ");
+      }
+      printf("[CMD] %s\n", cmd);
+      system(cmd);
+    } else if (streq(arg, "-i")) {
+      char cmd[256];
+      sprintf(cmd, "%s make && make install", is_forced ? "make clean &&" : "");
+      printf("[CMD] %s\n", cmd);
+      system(cmd);
     }
   }
   projman_create_makefile();
-
   return 0;
 }
