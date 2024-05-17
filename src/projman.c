@@ -57,9 +57,10 @@ void add_deps_to_makefile(FILE *mfile) {
 }
 
 void projman_create_makefile(void) {
-  char makefile[128] = {0};
-  sprintf(makefile, "%s/Makefile", project_name);
-  FILE *mfile = fopen(makefile, "wb");
+  char makefile[256] = {0};
+
+  sprintf(makefile, "%s/Makefile", directory);
+  FILE *mfile = fopen(makefile, "w");
   fprintf(mfile, "CC=%s\n", CC);
   fprintf(mfile, "CFLAGS=%s\n", CFLAGS);
   fprintf(mfile, "SRC=src/\n");
@@ -74,6 +75,7 @@ void projman_create_makefile(void) {
           project_name);
   fprintf(mfile, "%s: $(BIN)%s\n", project_name, project_name);
   fprintf(mfile, "clean:\n\trm -rf $(BIN)*\n\trm -rf $(BUILD)*\n");
+  fprintf(mfile, "install:\n\tcp $(BIN)%s /bin/", project_name);
   fclose(mfile);
 }
 
@@ -181,6 +183,9 @@ int main(int argc, char **argv) {
       exit(0);
     }
   }
+  if (project_name == NULL) {
+    project_name = actual_dir;
+  }
   if (streq(project_name, actual_dir)) {
     strcpy(directory, "./");
   } else if (project_name != NULL) {
@@ -189,55 +194,24 @@ int main(int argc, char **argv) {
   if (is_create) {
     projman_init();
   }
-
   for (int i = 1; i < argc; i++) {
     char *arg = argv[i];
     if (streq(arg, "-m")) {
-      if (argc <= ++i) {
-        usage();
-        exit(1);
-      }
-      while (i < argc && argv[i][0] != '-') {
+      while (++i < argc && argv[i][0] != '-') {
         char *module_name = argv[i];
         new_file(module_name, directory);
-        i++;
       }
-      if (i < argc) {
-        if (argv[i][0] == '-')
-          i -= 1;
-      }
-      continue;
     } else if (streq(arg, "-mh")) {
-      printf("Here\n");
-      if (argc <= ++i) {
-        usage();
-        exit(1);
-      }
-      while (i < argc && argv[i][0] != '-') {
+      printf("-MH\n");
+      while (++i < argc && argv[i][0] != '-') {
         char *module_name = argv[i];
         new_file_h(module_name, directory);
-        i++;
       }
-      if (i < argc) {
-        if (argv[i][0] == '-')
-          i -= 1;
-      }
-      continue;
     } else if (streq(arg, "-mc")) {
-      if (argc <= ++i) {
-        usage();
-        exit(1);
-      }
-      while (i < argc && argv[i][0] != '-') {
+      while (++i < argc && argv[i][0] != '-') {
         char *module_name = argv[i];
         new_file_c(module_name, directory);
-        i++;
       }
-      if (i < argc) {
-        if (argv[i][0] == '-')
-          i -= 1;
-      }
-      continue;
     }
   }
   projman_create_makefile();
