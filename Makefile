@@ -17,3 +17,5 @@ projman: $(BIN)projman
 clean:
 	rm -rf $(BIN)*
 	rm -rf $(BUILD)*
+install:
+	cp $(BIN)projman /bin/
