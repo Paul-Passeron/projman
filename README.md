@@ -2,7 +2,7 @@
 ## A C Project generator
 
 This tool allow for the easy creation of makefiles, header files and source files.
-It also cereates a .gitignore
+It also adds a .gitignore
 
 ### Usage:
 ```console
