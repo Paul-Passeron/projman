@@ -28,9 +28,46 @@ bool streq(char *s1, char *s2) {
 }
 char src_dir[256] = {0};
 
+void create_init_directories(FILE *mfile, DIR *d, int depth, char *old_path) {
+  if (depth <= 0)
+    return;
+  struct dirent *dir;
+  while ((dir = readdir(d)) != NULL) {
+    if (strcmp(dir->d_name, ".") == 0)
+      continue;
+    if (strcmp(dir->d_name, "..") == 0)
+      continue;
+    if (dir->d_type == DT_REG) {
+      continue;
+    } else {
+      char build_dir[PATH_MAX] = {0};
+      if (streq(directory, "./")) {
+        sprintf(build_dir, "build");
+      } else
+        sprintf(build_dir, "%s/build", directory);
+      char p[PATH_MAX] = "";
+      strcpy(p, old_path);
+      strcat(p, "/");
+      strcat(p, dir->d_name);
+
+      char to_create[PATH_MAX] = "";
+      strcat(to_create, "build/");
+      size_t to_remove = 0;
+      if (streq(src_dir, "./")) {
+        to_remove = strlen("src/");
+      } else
+        to_remove = strlen(src_dir) + 1;
+      strcat(to_create, p + to_remove);
+      // new_dir(to_create);
+      fprintf(mfile, "mkdir %s\n\t", to_create);
+      DIR *nd = opendir(p);
+      create_init_directories(mfile, nd, depth - 1, p);
+      closedir(nd);
+    }
+  }
+}
+
 void print_deps(FILE *mfile, DIR *d, int depth, char *old_path) {
-  printf("print_deps\n");
-  fflush(stdout);
   if (depth <= 0)
     return;
   struct dirent *dir;
@@ -50,7 +87,6 @@ void print_deps(FILE *mfile, DIR *d, int depth, char *old_path) {
       strcat(name, old_path);
       strcat(name, "/");
       strcat(name, dir->d_name);
-      printf("FILE: %s\n", name);
       if (strlen(dir->d_name) <= 2) {
         free(name);
         continue;
@@ -84,7 +120,6 @@ void print_deps(FILE *mfile, DIR *d, int depth, char *old_path) {
       }
       free(name);
     } else {
-      // TODO CREATE THE ASSOCIATE BUILD DIRECTORY
       char build_dir[PATH_MAX] = {0};
       if (streq(directory, "./")) {
         sprintf(build_dir, "build");
@@ -103,12 +138,8 @@ void print_deps(FILE *mfile, DIR *d, int depth, char *old_path) {
       } else
         to_remove = strlen(src_dir) + 1;
       strcat(to_create, p + to_remove);
-      printf("TO CREATE: %s\n", to_create);
-      // mkdir(to_create, );
       new_dir(to_create);
       DIR *nd = opendir(p);
-      printf("Printing dir: %s\n", p);
-      fflush(stdout);
       print_deps(mfile, nd, depth - 1, p);
       closedir(nd);
     }
@@ -140,19 +171,36 @@ void projman_create_makefile(void) {
   FILE *mfile = fopen(makefile, "w");
   fprintf(mfile, "CC=%s\n", CC);
   fprintf(mfile, "CFLAGS=%s\n", CFLAGS);
+  fprintf(mfile, "LIBS=");
+  FILE *libs = fopen(".projman.libs", "r");
+  if (libs != NULL) {
+    fseek(libs, 0, SEEK_END);
+    size_t l = ftell(libs);
+    fseek(libs, 0, SEEK_SET);
+    char *tmp = malloc(l + 1);
+    fread(tmp, 1, l, libs);
+    tmp[l] = 0;
+    fprintf(mfile, "%s", tmp);
+    free(tmp);
+  }
+  fprintf(mfile, "\n");
   fprintf(mfile, "SRC=src/\n");
   fprintf(mfile, "BUILD=build/\n");
   fprintf(mfile, "BIN=bin/\n\n");
   add_deps_to_makefile(mfile);
-  fprintf(mfile, "all: lines %s\n", project_name);
+  fprintf(mfile, "all: init lines %s\n", project_name);
   fprintf(mfile, "lines:\n\t@echo \"C:\"\n\t@wc -l $$( find -wholename "
                  "\'./*.[hc]\') | tail -n 1\n");
   fprintf(mfile, "$(BUILD)%%.o: $(SRC)%%.c\n\t $(CC) $(CFLAGS) -o $@ $^ -c\n");
-  fprintf(mfile, "$(BIN)%s: $(DEPS)\n\t$(CC) $(CFLAGS) -o $@ $^\n",
+  fprintf(mfile, "$(BIN)%s: $(DEPS)\n\t$(CC) $(CFLAGS) -o $@ $^ $(LIBS)\n",
           project_name);
   fprintf(mfile, "%s: $(BIN)%s\n", project_name, project_name);
   fprintf(mfile, "clean:\n\trm -rf $(BIN)*\n\trm -rf $(BUILD)*\n");
   fprintf(mfile, "install:\n\tcp $(BIN)%s /bin/", project_name);
+  fprintf(mfile, "\ninit:\n\t");
+  DIR *d = opendir(src_dir);
+  create_init_directories(mfile, d, 3, src_dir);
+  closedir(d);
   fclose(mfile);
 }
 
@@ -297,6 +345,8 @@ int main(int argc, char **argv) {
       }
     } else if (streq(arg, "-r")) {
       char cmd[256];
+      projman_create_makefile();
+
       sprintf(cmd, "%s make && %sbin/%s ", is_forced ? "make clean &&" : "",
               directory, project_name);
       while (++i < argc && argv[i][0] != '-') {
@@ -307,16 +357,27 @@ int main(int argc, char **argv) {
       system(cmd);
     } else if (streq(arg, "-i")) {
       char cmd[256];
+      projman_create_makefile();
+
       sprintf(cmd, "%s make && make install", is_forced ? "make clean &&" : "");
       printf("[CMD] %s\n", cmd);
       system(cmd);
+    } else if (streq(arg, "-b")) {
+      char cmd[256];
+      projman_create_makefile();
+      sprintf(cmd, "%s make", is_forced ? "make clean &&" : "");
+      printf("[CMD] %s\n", cmd);
+      system(cmd);
     } else if (streq(arg, "-f")) {
+      continue;
+    } else if (streq(arg, "-c")) {
+      i++;
       continue;
     } else {
       usage();
       exit(1);
     }
   }
-  projman_create_makefile();
+  // projman_create_makefile();
   return 0;
 }
