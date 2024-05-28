@@ -283,6 +283,8 @@ void usage() {
   printf("\t-r [args] Build and run the current project with args\n");
   printf("\t-f forces the makefile to recompile everything\n");
   printf("\t-i install the project (Can require sudo)\n");
+  printf("\t-b rebuilds the makefile and builds the project\n");
+  printf("\t-bm rebuilds the makefile only\n");
   // printf();
 }
 
@@ -295,6 +297,10 @@ int main(int argc, char **argv) {
   prg_name = argv[0];
   getcwd(actual_dir, 128);
   strcpy(actual_dir, basename(actual_dir));
+  if (argc == 1) {
+    usage();
+    exit(1);
+  }
   // First pass, looking for a create
   for (int i = 1; i < argc; i++) {
     char *arg = argv[i];
@@ -368,6 +374,8 @@ int main(int argc, char **argv) {
       sprintf(cmd, "%s make", is_forced ? "make clean &&" : "");
       printf("[CMD] %s\n", cmd);
       system(cmd);
+    } else if (streq(arg, "-bm")) {
+      projman_create_makefile();
     } else if (streq(arg, "-f")) {
       continue;
     } else if (streq(arg, "-c")) {
